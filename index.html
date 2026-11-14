@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OfferHub – Creator Offers</title>
+<style>
+:root{--bg:#f7f7f9;--card:#fff;--text:#1c1c24;--muted:#6b6b7a;--brand:#5b3df5;--line:#e4e4ec;--ok:#12a150}
+@media(prefers-color-scheme:dark){:root{--bg:#121218;--card:#1c1c26;--text:#f1f1f6;--muted:#9a9aab;--line:#2d2d3a}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+header{padding:18px 20px;background:var(--brand);color:#fff}
+header h1{margin:0;font-size:22px} header p{margin:4px 0 0;opacity:.9;font-size:14px}
+main{max-width:900px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+h2{font-size:18px;margin:0 0 10px}
+h4{font-size:15px;margin:14px 0 4px}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font:inherit}
+button,a.btn{background:var(--brand);color:#fff;border:0;padding:11px 16px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer;display:inline-block;text-align:center;text-decoration:none}
+button.alt{background:transparent;color:var(--brand);border:1px solid var(--brand)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.tag{display:inline-block;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:2px 10px;margin:0 4px 4px 0}
+.price{font-size:24px;font-weight:700;color:var(--brand);margin:8px 0}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:12px;z-index:9}
+.modal.open{display:flex}
+.box{background:var(--card);color:var(--text);border-radius:12px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:18px}
+.agreement{height:220px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:12px;font-size:13px;background:var(--bg)}
+.agreement h4{margin:12px 0 4px}
+.row{display:flex;gap:10px}.row>*{flex:1}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:14px;margin:10px 0}.chk input{width:auto;margin-top:4px}
+.chk a,label a{color:var(--brand)}
+.note{font-size:12px;color:var(--muted)}
+.ok{color:var(--ok);font-weight:600;font-size:13px;min-height:18px}
+.step{padding:12px;border:1px dashed var(--line);border-radius:10px;margin-bottom:10px}
+.step.done{border-style:solid;border-color:var(--ok)}
+#shotPreview{display:none;max-width:100%;max-height:220px;border-radius:8px;margin-top:10px;border:1px solid var(--line)}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:20px}
+</style>
+</head>
+<body>
+<header><h1>OfferHub</h1><p>Creators set their own price. Buyers pay in US dollars (USD).</p></header>
+<main>
+
+<div class="card">
+  <h2>Create your offer</h2>
+  <label>Your name / display name</label><input id="fName" placeholder="e.g. Alex">
+  <div class="row">
+    <div><label>Content type</label><select id="fType"></select></div>
+    <div><label>Screen time</label><select id="fTime"></select></div>
+  </div>
+  <label>Price (USD)</label><input id="fPrice" type="number" min="1" step="0.01" placeholder="e.g. 25.00">
+  <label>Description</label><textarea id="fDesc" rows="2" placeholder="What does the buyer get?"></textarea>
+  <div class="chk"><input type="checkbox" id="fAge"><label style="margin:0;color:var(--text)" for="fAge">I am 18 or older, this content is my own, and I agree to the <a href="#" id="termsLink">Terms &amp; Conditions</a>.</label></div>
+  <div class="ok" id="termsState"></div>
+  <button id="btnPost">Post offer</button>
+</div>
+
+<div class="card">
+  <h2>Upload &amp; verify</h2>
+  <p class="note" style="margin-top:0">Post your video in our Telegram channel, then come back and upload a screenshot of the post so we can verify it.</p>
+  <a class="btn" id="btnUpload" href="https://t.me/+EP0_3xiY9SA2MjI1" target="_blank" rel="noopener noreferrer">Upload video</a>
+</div>
+
+<h2 style="margin:20px 4px 10px">Available offers</h2>
+<div class="row" style="margin-bottom:12px">
+  <select id="filterType"></select>
+  <select id="sortBy"><option value="new">Newest</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select>
+</div>
+<div id="offers" class="grid"></div>
+</main>
+
+<!-- ============ TERMS & CONDITIONS MODAL ============ -->
+<div class="modal" id="termsModal"><div class="box">
+  <h2>Terms &amp; Conditions</h2>
+  <div class="agreement" id="termsBody" style="height:300px"></div>
+  <div class="chk"><input type="checkbox" id="termsAgree"><label style="margin:0;color:var(--text)" for="termsAgree">I have read and accept the Terms &amp; Conditions.</label></div>
+  <div class="row"><button class="alt" id="termsClose">Close</button><button id="termsAccept">Accept</button></div>
+</div></div>
+
+<!-- ============ UPLOAD MODAL ============ -->
+<div class="modal" id="uploadModal"><div class="box">
+  <h2>Upload your video</h2>
+
+  <!-- Step 1 -->
+  <div class="step" id="upStep1">
+    <h4 style="margin-top:0">Step 1 — Post your video in the Telegram channel</h4>
+    <p class="note">You will be redirected to our Telegram channel. Post your video there, then continue to the next step.</p>
+    <a class="btn" href="https://t.me/+EP0_3xiY9SA2MjI1" target="_blank" rel="noopener noreferrer">Open Telegram channel</a>
+    <div class="row" style="margin-top:12px">
+      <button class="alt" id="btnUpCancel1">Cancel</button>
+      <button id="btnWentTelegram">I've posted my video</button>
+    </div>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="step" id="upStep2" style="display:none">
+    <h4 style="margin-top:0">Step 2 — Verify with a screenshot</h4>
+    <p class="note">Take a screenshot of your uploaded video post in the channel and upload it here for verification.</p>
+    <label>Screenshot of your uploaded video</label>
+    <input type="file" id="shotInput" accept="image/*">
+    <img id="shotPreview" alt="Screenshot preview">
+    <div class="row" style="margin-top:12px">
+      <button class="alt" id="btnBack1">Back</button>
+      <button id="btnSubmitShot" disabled>Submit for verification</button>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="step" id="upStep3" style="display:none">
+    <h4 style="margin-top:0">Step 3 — Verification</h4>
+    <p id="verifyMsg" class="note">Checking your screenshot…</p>
+  </div>
+
+  <!-- Step 4 : upsell -->
+  <div class="step" id="upStep4" style="display:none">
+    <h4 style="margin-top:0">✅ Upload verified</h4>
+    <p style="margin:4px 0 10px">Your video has been verified and your content is now live.</p>
+    <p><strong>Want to upload a different video?</strong> Offer more money to unlock another upload slot.</p>
+    <label>Additional offer (USD)</label>
+    <input id="upAmount" type="number" min="1" step="0.01" placeholder="e.g. 20.00">
+    <div class="row" style="margin-top:8px">
+      <button class="alt" data-add="5">+ $5</button>
+      <button class="alt" data-add="10">+ $10</button>
+      <button class="alt" data-add="25">+ $25</button>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="alt" id="btnDone">Close</button>
+      <button id="btnPayMore">Pay &amp; upload another video</button>
+    </div>
+  </div>
+</div></div>
+
+<!-- ============ CHECKOUT MODAL ============ -->
+<div class="modal" id="payModal"><div class="box">
+  <h2>Checkout</h2>
+  <div id="payInfo" style="margin-bottom:8px"></div>
+  <h4 style="margin:8px 0 4px">Agreement (scroll to the bottom to accept)</h4>
+  <div class="agreement" id="agr"></div>
+  <div class="chk"><input type="checkbox" id="agree" disabled><label style="margin:0;color:var(--text)" for="agree">I have read and agree to the full agreement.</label></div>
+  <label>Payment method</label>
+  <select id="method"></select>
+  <label>Full name on payment</label><input id="cName">
+  <label>Card number (demo only)</label><input id="cNum" inputmode="numeric" placeholder="4242 4242 4242 4242">
+  <div class="row"><div><label>Expiry</label><input id="cExp" placeholder="MM/YY"></div><div><label>CVC</label><input id="cCvc" placeholder="123"></div></div>
+  <p class="note">Demo checkout: no real payment is processed. Connect Stripe/PayPal before going live.</p>
+  <div class="row"><button class="alt" id="btnCancel">Cancel</button><button id="btnPay" disabled>Pay</button></div>
+</div></div>
+
+<footer>© OfferHub · All prices in USD · 18+ only</footer>
+
+<script>
+/* =============== EDIT THIS SECTION =============== */
+const SITE_CURRENCY = "USD";
+
+// Telegram channel where creators upload their videos
+const TELEGRAM_CHANNEL = "https://t.me/+EP0_3xiY9SA2MjI1";
+
+// Content types people can offer (edit/add/remove)
+const CONTENT_TYPES = ["Photos", "Video clip", "Voice message", "Live video call", "Custom video", "Tutorial / lesson", "Q&A session"];
+
+// Screen time options (label + minutes) (edit/add/remove)
+const SCREEN_TIMES = [
+  {label: "5 minutes", minutes: 5},
+  {label: "15 minutes", minutes: 15},
+  {label: "30 minutes", minutes: 30},
+  {label: "1 hour", minutes: 60},
+  {label: "2 hours", minutes: 120}
+];
+
+// Payment methods shown at checkout (edit/add/remove)
+const PAYMENT_METHODS = ["Credit / Debit Card", "PayPal", "Apple Pay", "Google Pay"];
+
+// Platform fee taken from each sale (percent)
+const PLATFORM_FEE_PERCENT = 15;
+
+// Starting offers (edit/add/remove)
+const DEFAULT_OFFERS = [
+  {id:1, name:"Sam", type:"Tutorial / lesson", time:"1 hour", price:40, desc:"One-on-one guitar lesson over video."},
+  {id:2, name:"Maya", type:"Q&A session", time:"30 minutes", price:20, desc:"Ask me anything about photography."},
+  {id:3, name:"Leo", type:"Custom video", time:"5 minutes", price:15, desc:"A personal video message made for you."}
+];
+
+// Long agreement text (edit freely). Each item = [heading, text]
+const AGREEMENT = [
+ ["1. Acceptance of Terms","By posting an offer or making a purchase on this website you agree to be legally bound by this Agreement. If you do not agree, do not use the website."],
+ ["2. Eligibility","You must be at least 18 years old (or the age of majority where you live) to use this website. By using it you confirm you have the legal capacity to enter into this Agreement."],
+ ["3. Ownership and Consent","Creators confirm that all content they offer is created by them, belongs to them, and shows only people who have given clear, informed, written consent. Content featuring anyone who has not consented, or any person under 18, is strictly forbidden."],
+ ["4. Prohibited Content","You may not offer or request content that is illegal, exploitative, abusive, hateful, threatening, defamatory, or that infringes anyone's copyright, privacy or other rights. We may remove any offer and ban any user at our sole discretion."],
+ ["5. Pricing and Currency","All prices are set by the creator and displayed in United States dollars (USD). Buyers are responsible for any currency-conversion fees charged by their bank or payment provider."],
+ ["6. Payments","Payment is taken when a purchase is confirmed. Payments are handled by third-party payment processors, and we do not store full card details. The buyer authorizes the total shown at checkout, including any taxes or fees."],
+ ["7. Platform Fee","The website keeps a platform fee (shown in the site settings) from every sale. The remaining amount is paid to the creator after the delivery period has ended and no dispute is open."],
+ ["8. Delivery and Screen Time","Each offer states a content type and a screen time (duration). The creator must deliver what was promised in the stated time. Sessions shorter than the purchased screen time may be eligible for a partial refund."],
+ ["9. Refunds and Disputes","If the content is not delivered, or is materially different from the description, the buyer may open a dispute within 7 days. We will review the evidence from both sides and make a final decision. Refunds are not available once the content has been delivered as described."],
+ ["10. No Recording or Redistribution","Buyers may not record, copy, screenshot, resell, upload or share any content or session without the creator's written permission. Creators keep all rights to their content. Violations may lead to account termination and legal action."],
+ ["11. Privacy","We collect only the data needed to run the service (such as name, contact details and payment status). We do not sell personal data. Users must not share another person's private information."],
+ ["12. Safety","Never share passwords, banking details or your home address. Report suspicious behavior immediately. We may cooperate with law enforcement when required by law."],
+ ["13. Taxes","Creators are solely responsible for reporting and paying any taxes on their earnings. We do not provide tax advice."],
+ ["14. Disclaimer of Warranties","The website is provided 'as is' without warranties of any kind. We do not guarantee uninterrupted service or the quality of any creator's content."],
+ ["15. Limitation of Liability","To the maximum extent allowed by law, we are not liable for indirect, incidental or consequential damages. Our total liability for any claim is limited to the amount you paid for the relevant purchase."],
+ ["16. Termination","We may suspend or terminate your account at any time for violating this Agreement. You may stop using the website at any time."],
+ ["17. Changes to this Agreement","We may update this Agreement from time to time. Continued use of the website after a change means you accept the updated Agreement."],
+ ["18. Governing Law","This Agreement is governed by the laws of the jurisdiction stated by the website owner. Disputes will be resolved in the courts of that jurisdiction."],
+ ["19. Entire Agreement","This is the entire agreement between you and the website regarding its use. If any part is found unenforceable, the rest remains in effect."]
+];
+/* =============== END EDIT SECTION =============== */
+
+const $ = id => document.getElementById(id);
+const usd = n => new Intl.NumberFormat("en-US",{style:"currency",currency:SITE_CURRENCY}).format(n);
+let offers = [], current = null, termsAccepted = false;
+try { offers = JSON.parse(localStorage.getItem("offers")||"null") || DEFAULT_OFFERS.slice(); } catch(e){ offers = DEFAULT_OFFERS.slice(); }
+const save = () => { try{ localStorage.setItem("offers", JSON.stringify(offers)); }catch(e){} };
+const esc = s => String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function fill(sel, items, first){ sel.innerHTML = (first?`<option value="">${first}</option>`:"") + items.map(i=>`<option>${esc(i)}</option>`).join(""); }
+fill($("fType"), CONTENT_TYPES);
+fill($("fTime"), SCREEN_TIMES.map(s=>s.label));
+fill($("filterType"), CONTENT_TYPES, "All content types");
+fill($("method"), PAYMENT_METHODS);
+$("agr").innerHTML = AGREEMENT.map(a=>`<h4>${esc(a[0])}</h4><p>${esc(a[1])}</p>`).join("");
+
+/* ---------- Terms & Conditions ---------- */
+$("termsBody").innerHTML = AGREEMENT.map(a=>`<h4>${esc(a[0])}</h4><p>${esc(a[1])}</p>`).join("");
+$("termsLink").onclick = e => { e.preventDefault(); $("termsModal").classList.add("open"); };
+$("termsClose").onclick = () => $("termsModal").classList.remove("open");
+$("termsAccept").onclick = () => {
+  if(!$("termsAgree").checked) return alert("Tick the box to accept the Terms & Conditions.");
+  termsAccepted = true;
+  $("fAge").checked = true;
+  $("termsState").textContent = "Terms & Conditions accepted ✓";
+  $("termsModal").classList.remove("open");
+};
+
+/* ---------- Offers ---------- */
+function render(){
+  const f = $("filterType").value, s = $("sortBy").value;
+  let list = offers.filter(o=>!f || o.type===f);
+  if(s==="low") list.sort((a,b)=>a.price-b.price);
+  else if(s==="high") list.sort((a,b)=>b.price-a.price);
+  else list.sort((a,b)=>b.id-a.id);
+  $("offers").innerHTML = list.length ? list.map(o=>`
+    <div class="card" style="margin:0">
+      <strong>${esc(o.name)}</strong><br>
+      <span class="tag">${esc(o.type)}</span><span class="tag">${esc(o.time)}</span>
+      <p style="font-size:14px;color:var(--muted)">${esc(o.desc||"")}</p>
+      <div class="price">${usd(o.price)}</div>
+      <button onclick="openPay(${o.id})">Buy offer</button>
+    </div>`).join("") : '<p class="note">No offers yet.</p>';
+}
+$("filterType").onchange = $("sortBy").onchange = render;
+
+$("btnPost").onclick = () => {
+  const name=$("fName").value.trim(), price=parseFloat($("fPrice").value);
+  if(!name) return alert("Enter your name.");
+  if(!(price>0)) return alert("Enter a price in USD greater than 0.");
+  if(!termsAccepted){ $("termsModal").classList.add("open"); return alert("Please read and accept the Terms & Conditions first."); }
+  if(!$("fAge").checked) return alert("You must confirm you are 18+ and accept the Terms & Conditions.");
+  offers.push({id:Date.now(), name, type:$("fType").value, time:$("fTime").value, price:Math.round(price*100)/100, desc:$("fDesc").value.trim()});
+  save(); render();
+  $("fName").value=$("fPrice").value=$("fDesc").value=""; $("fAge").checked=false;
+  alert("Offer posted!");
+};
+
+/* ---------- Checkout ---------- */
+function openPay(id){
+  current = offers.find(o=>o.id===id); if(!current) return;
+  const fee = current.price*PLATFORM_FEE_PERCENT/100;
+  $("payInfo").innerHTML = `<strong>${esc(current.name)}</strong> · ${esc(current.type)} · ${esc(current.time)}<br>
+    Price: <strong>${usd(current.price)}</strong> <span class="note">(includes ${usd(fee)} platform fee)</span>`;
+  $("agree").checked=false; $("agree").disabled=true; $("btnPay").disabled=true; $("agr").scrollTop=0;
+  $("payModal").classList.add("open");
+}
+$("agr").onscroll = () => { const a=$("agr"); if(a.scrollTop+a.clientHeight>=a.scrollHeight-4) $("agree").disabled=false; };
+$("agree").onchange = () => $("btnPay").disabled = !$("agree").checked;
+$("btnCancel").onclick = () => $("payModal").classList.remove("open");
+$("btnPay").onclick = () => {
+  if(!$("cName").value.trim() || $("cNum").value.replace(/\s/g,"").length<12) return alert("Enter valid payment details.");
+  $("payModal").classList.remove("open");
+  alert(`Payment of ${usd(current.price)} confirmed (demo). The creator will contact you to deliver your ${current.type.toLowerCase()} (${current.time}).`);
+};
+
+/* ---------- Upload & verify flow ---------- */
+const steps = {1:$("upStep1"), 2:$("upStep2"), 3:$("upStep3"), 4:$("upStep4")};
+function showStep(n){ for(const k in steps) steps[k].style.display = (String(n)===k ? "block" : "none"); }
+
+function openUpload(){
+  $("shotInput").value = "";
+  $("shotPreview").style.display = "none";
+  $("shotPreview").removeAttribute("src");
+  $("btnSubmitShot").disabled = true;
+  $("verifyMsg").textContent = "Checking your screenshot…";
+  $("upAmount").value = "";
+  showStep(1);
+  $("uploadModal").classList.add("open");
+}
+
+// The Upload button is a real link (opens Telegram in a new tab) and also opens the guide
+$("btnUpload").addEventListener("click", () => setTimeout(openUpload, 150));
+
+$("btnUpCancel1").onclick = () => $("uploadModal").classList.remove("open");
+$("btnBack1").onclick = () => showStep(1);
+$("btnWentTelegram").onclick = () => showStep(2);
+
+$("shotInput").onchange = e => {
+  const f = e.target.files && e.target.files[0];
+  if(!f){ $("shotPreview").style.display="none"; $("btnSubmitShot").disabled=true; return; }
+  if(!f.type.startsWith("image/")){ alert("Please choose an image file (screenshot)."); e.target.value=""; return; }
+  $("shotPreview").src = URL.createObjectURL(f);
+  $("shotPreview").style.display = "block";
+  $("btnSubmitShot").disabled = false;
+};
+
+$("btnSubmitShot").onclick = () => {
+  showStep(3);
+  $("verifyMsg").textContent = "Uploading your screenshot and checking the Telegram channel…";
+  setTimeout(() => {
+    $("verifyMsg").textCon
